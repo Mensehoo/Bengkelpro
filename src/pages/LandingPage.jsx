@@ -1,4 +1,4 @@
-import { theme, STATUS } from "../constants/theme";
+import { theme } from "../constants/theme";
 import Icon from "../components/Icon";
 import { Btn, Card } from "../components/ui";
 import useIsMobile from "../hooks/useIsMobile";
