@@ -1,7 +1,29 @@
-import { useState } from "react";
+import { useState, Component } from "react";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { theme } from "./constants/theme";
 import Icon from "./components/Icon";
+
+// ─── Error Boundary ───────────────────────────────────────────────────────────
+class ErrorBoundary extends Component {
+  constructor(props) { super(props); this.state = { error: null }; }
+  static getDerivedStateFromError(error) { return { error }; }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 16, fontFamily: "sans-serif", padding: 24, background: "#fff8f8" }}>
+          <div style={{ fontSize: 40 }}>⚠️</div>
+          <div style={{ fontWeight: 700, fontSize: 18, color: "#e53e3e" }}>Terjadi Error</div>
+          <pre style={{ background: "#f7f7f7", padding: 16, borderRadius: 8, fontSize: 12, maxWidth: 600, overflow: "auto", color: "#333", border: "1px solid #ddd" }}>
+            {this.state.error?.message || String(this.state.error)}
+          </pre>
+          <div style={{ fontSize: 13, color: "#666" }}>Pastikan environment variables Supabase sudah diisi dengan benar di Vercel.</div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 
 import LandingPage from "./pages/LandingPage";
 import AuthPage from "./pages/AuthPage";
@@ -62,13 +84,15 @@ const AppInner = () => {
 // ─── Root App ─────────────────────────────────────────────────────────────────
 export default function App() {
   return (
-    <AuthProvider>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800;900&display=swap');
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Sora', sans-serif; }
-      `}</style>
-      <AppInner />
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <style>{`
+          @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800;900&display=swap');
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { font-family: 'Sora', sans-serif; }
+        `}</style>
+        <AppInner />
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
