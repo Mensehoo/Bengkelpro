@@ -8,21 +8,39 @@ export const AuthProvider = ({ children }) => {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Ambil profile (role) dari tabel profiles
-  const fetchProfile = async (userId) => {
+  // Ambil profile (role) dari tabel profiles, buat baru jika belum ada
+  const fetchProfile = async (userId, userMeta = {}) => {
     const { data, error } = await supabase
       .from("profiles")
       .select("*")
       .eq("id", userId)
       .single();
-    if (!error) setProfile(data);
+
+    if (!error && data) {
+      setProfile(data);
+      return;
+    }
+
+    // Profile belum ada (trigger gagal) — buat manual
+    const { data: created } = await supabase
+      .from("profiles")
+      .upsert({
+        id: userId,
+        full_name: userMeta?.full_name || "",
+        role: userMeta?.role || "customer",
+        phone: userMeta?.phone || null,
+      })
+      .select()
+      .single();
+
+    if (created) setProfile(created);
   };
 
   useEffect(() => {
     // Cek session aktif saat pertama load
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setUser(session?.user ?? null);
-      if (session?.user) fetchProfile(session.user.id);
+      if (session?.user) await fetchProfile(session.user.id, session.user.user_metadata);
       setLoading(false);
     });
 
@@ -31,7 +49,7 @@ export const AuthProvider = ({ children }) => {
       async (_event, session) => {
         setUser(session?.user ?? null);
         if (session?.user) {
-          await fetchProfile(session.user.id);
+          await fetchProfile(session.user.id, session.user.user_metadata);
         } else {
           setProfile(null);
         }
