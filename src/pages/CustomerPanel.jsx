@@ -1,0 +1,200 @@
+import { useState } from "react";
+import { theme } from "../constants/theme";
+import Icon from "../components/Icon";
+import { Badge, Card, StatCard, EmptyState, Btn } from "../components/ui";
+
+const CustomerPanel = ({ onLogout }) => {
+  const [page, setPage] = useState("dashboard");
+  const navItems = [
+    { id: "dashboard", icon: "home",     label: "Beranda" },
+    { id: "booking",   icon: "calendar", label: "Booking" },
+    { id: "garage",    icon: "car",      label: "Garasi Saya" },
+    { id: "history",   icon: "history",  label: "Riwayat" },
+  ];
+
+  const vehicles = [
+    { name: "Honda Vario 150", plate: "D 1234 AB", type: "Motor", color: "#E74C3C", status: "processing" },
+    { name: "Yamaha NMAX",     plate: "D 5678 CD", type: "Motor", color: "#3498DB", status: "waiting" },
+  ];
+
+  const history = [
+    { date: "10 Jun 2025", service: "Servis Ringan + Ganti Oli", vehicle: "Honda Vario 150", total: "Rp 120.000", status: "finished" },
+    { date: "02 Apr 2025", service: "Ganti Kampas Rem",          vehicle: "Yamaha NMAX",     total: "Rp 85.000",  status: "finished" },
+  ];
+
+  const renderPage = () => {
+    switch (page) {
+      case "dashboard":
+        return (
+          <div>
+            <div style={{ background: `linear-gradient(135deg, ${theme.primary}, ${theme.primaryDark})`, borderRadius: 20, padding: "24px 28px", marginBottom: 24, color: "#fff" }}>
+              <div style={{ fontSize: 13, opacity: 0.85, marginBottom: 4 }}>Halo, Budi Santoso 👋</div>
+              <div style={{ fontWeight: 800, fontSize: 20, marginBottom: 16 }}>Kendaraan dalam servis</div>
+              <div style={{ background: "rgba(255,255,255,0.15)", borderRadius: 14, padding: "16px 20px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                  <div>
+                    <div style={{ fontWeight: 700 }}>Honda Vario 150</div>
+                    <div style={{ fontSize: 12, opacity: 0.75 }}>D 1234 AB · Ganti Oli & Filter</div>
+                  </div>
+                  <Badge status="processing" />
+                </div>
+                <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 6 }}>Progress: 65%</div>
+                <div style={{ height: 8, background: "rgba(255,255,255,0.25)", borderRadius: 10 }}>
+                  <div style={{ width: "65%", height: "100%", background: "#fff", borderRadius: 10 }} />
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, opacity: 0.7, marginTop: 6 }}>
+                  <span>Check-in</span><span>Diagnosa</span><span>Pengerjaan</span><span>Selesai</span>
+                </div>
+              </div>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 24 }}>
+              <StatCard label="Total Servis" value="8x"  icon="wrench" color={theme.primary} />
+              <StatCard label="Kendaraan"    value="2"   icon="car"    color={theme.info} />
+            </div>
+            <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 14 }}>Aktivitas Terbaru</div>
+            {history.slice(0, 2).map((h, i) => (
+              <Card key={i} style={{ marginBottom: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: 13 }}>{h.service}</div>
+                  <div style={{ fontSize: 12, color: theme.textMuted }}>{h.vehicle} · {h.date}</div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontWeight: 700, color: theme.primary, fontSize: 13 }}>{h.total}</div>
+                  <Badge status={h.status} />
+                </div>
+              </Card>
+            ))}
+          </div>
+        );
+
+      case "booking":
+        return (
+          <div>
+            <Card style={{ marginBottom: 16 }}>
+              <div style={{ fontWeight: 700, marginBottom: 16 }}>Pilih Kendaraan</div>
+              {vehicles.map((v, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px", border: `2px solid ${i === 0 ? theme.primary : theme.border}`, borderRadius: 12, marginBottom: 10, cursor: "pointer" }}>
+                  <div style={{ width: 40, height: 40, background: v.color + "20", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <Icon name="car" size={20} color={v.color} />
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 13 }}>{v.name}</div>
+                    <div style={{ fontSize: 11, color: theme.textMuted }}>{v.plate}</div>
+                  </div>
+                  {i === 0 && <div style={{ marginLeft: "auto", width: 18, height: 18, background: theme.primary, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <Icon name="check" size={12} color="#fff" />
+                  </div>}
+                </div>
+              ))}
+            </Card>
+            <Card style={{ marginBottom: 16 }}>
+              <div style={{ fontWeight: 700, marginBottom: 14 }}>Pilih Tanggal & Jam</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4, marginBottom: 14 }}>
+                {["S","M","S","R","K","J","S"].map((d, i) => <div key={i} style={{ textAlign: "center", fontSize: 11, color: theme.textMuted, fontWeight: 600 }}>{d}</div>)}
+                {Array.from({ length: 30 }, (_, i) => (
+                  <div key={i} style={{ textAlign: "center", padding: "8px 4px", borderRadius: 8, fontSize: 12, cursor: "pointer", background: i === 11 ? theme.primary : i === 5 || i === 12 ? theme.bg : "transparent", color: i === 11 ? "#fff" : i === 5 || i === 12 ? theme.textMuted : theme.text, fontWeight: i === 11 ? 700 : 400 }}>
+                    {i + 1}
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
+                {["08:00","09:00","10:00","11:00","13:00","14:00","15:00","16:00"].map((t, i) => (
+                  <div key={t} style={{ textAlign: "center", padding: "8px", borderRadius: 8, border: `1.5px solid ${i === 1 ? theme.primary : theme.border}`, fontSize: 12, cursor: "pointer", color: i === 1 ? theme.primary : theme.text, fontWeight: i === 1 ? 700 : 400, background: i === 1 ? `${theme.primary}10` : "#fff" }}>
+                    {t}
+                  </div>
+                ))}
+              </div>
+            </Card>
+            <Card style={{ marginBottom: 16 }}>
+              <div style={{ fontWeight: 700, marginBottom: 12 }}>Deskripsi Keluhan</div>
+              <textarea placeholder="Ceritakan keluhan kendaraan Anda..." style={{ width: "100%", minHeight: 100, border: `1.5px solid ${theme.border}`, borderRadius: 10, padding: "10px 14px", fontSize: 13, outline: "none", resize: "none", boxSizing: "border-box", fontFamily: "'Sora', sans-serif" }} />
+            </Card>
+            <Btn style={{ width: "100%", justifyContent: "center" }} size="lg" icon="check">Konfirmasi Booking</Btn>
+          </div>
+        );
+
+      case "garage":
+        return (
+          <div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <div style={{ fontWeight: 700 }}>2 Kendaraan</div>
+              <Btn size="sm" icon="plus">Tambah</Btn>
+            </div>
+            {vehicles.map((v, i) => (
+              <Card key={i} style={{ marginBottom: 14 }}>
+                <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+                  <div style={{ width: 64, height: 64, background: v.color + "15", borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <Icon name="car" size={30} color={v.color} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, fontSize: 15 }}>{v.name}</div>
+                    <div style={{ fontSize: 12, color: theme.textMuted, marginBottom: 8 }}>{v.plate} · {v.type}</div>
+                    <Badge status={v.status} />
+                  </div>
+                  <Icon name="arrow_right" size={16} color={theme.textMuted} />
+                </div>
+              </Card>
+            ))}
+            <EmptyState icon="car" title="Tambah Kendaraan" desc="Kendaraan Anda belum semua terdaftar?" action="+ Tambah Kendaraan" />
+          </div>
+        );
+
+      case "history":
+        return history.length > 0 ? (
+          <div>
+            {history.map((h, i) => (
+              <Card key={i} style={{ marginBottom: 12 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 14 }}>{h.service}</div>
+                    <div style={{ fontSize: 12, color: theme.textMuted }}>{h.vehicle} · {h.date}</div>
+                  </div>
+                  <Badge status={h.status} />
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", borderTop: `1px solid ${theme.border}`, paddingTop: 12, alignItems: "center" }}>
+                  <div style={{ fontWeight: 800, color: theme.primary }}>{h.total}</div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <Btn size="sm" variant="ghost" icon="eye">Detail</Btn>
+                    <Btn size="sm" variant="outline" icon="whatsapp">Nota</Btn>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        ) : <EmptyState icon="history" title="Belum ada riwayat servis" desc="Riwayat servis kendaraan Anda akan muncul di sini" />;
+
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div style={{ fontFamily: "'Sora', sans-serif", background: theme.bg, minHeight: "100vh", paddingBottom: 80 }}>
+      <div style={{ background: "#fff", borderBottom: `1px solid ${theme.border}`, padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ fontWeight: 800, fontSize: 17, color: theme.text }}>BengkelPro</div>
+        <div style={{ display: "flex", gap: 10 }}>
+          <Icon name="bell" size={22} color={theme.textMuted} />
+          <div style={{ width: 32, height: 32, background: theme.primary, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 13 }}>B</div>
+        </div>
+      </div>
+      <div style={{ padding: "20px 16px" }}>
+        <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 4 }}>
+          {navItems.find(n => n.id === page)?.label}
+        </div>
+        <div style={{ color: theme.textMuted, fontSize: 13, marginBottom: 20 }}>Selasa, 10 Juni 2025</div>
+        {renderPage()}
+      </div>
+      {/* BOTTOM NAV */}
+      <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "#fff", borderTop: `1px solid ${theme.border}`, display: "flex", padding: "8px 0 12px" }}>
+        {navItems.map((item) => (
+          <button key={item.id} onClick={() => setPage(item.id)} style={{ flex: 1, border: "none", background: "transparent", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, padding: "4px 0" }}>
+            <Icon name={item.icon} size={22} color={page === item.id ? theme.primary : theme.textMuted} />
+            <span style={{ fontSize: 10, color: page === item.id ? theme.primary : theme.textMuted, fontWeight: page === item.id ? 700 : 500, fontFamily: "'Sora', sans-serif" }}>{item.label}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export default CustomerPanel;
