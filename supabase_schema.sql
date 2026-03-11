@@ -15,25 +15,33 @@ create table if not exists profiles (
   created_at timestamptz default now()
 );
 
+-- 2. BERIKAN HAK AKSES SISTEM SUPABASE KE SKEMA PUBLIK
+grant usage on schema public to postgres, anon, authenticated, service_role;
+grant all privileges on all tables in schema public to postgres, anon, authenticated, service_role;
+grant all privileges on all routines in schema public to postgres, anon, authenticated, service_role;
+grant all privileges on all sequences in schema public to postgres, anon, authenticated, service_role;
+
 -- Auto-create profile saat user baru register
-create or replace function handle_new_user()
+create or replace function public.handle_new_user()
 returns trigger as $$
 begin
-  insert into profiles (id, full_name, role)
+  insert into public.profiles (id, full_name, role)
   values (
     new.id,
     new.raw_user_meta_data->>'full_name',
     coalesce(new.raw_user_meta_data->>'role', 'customer')
   )
-  on conflict (id) do nothing;
+  on conflict (id) do update set
+    full_name = excluded.full_name,
+    role = excluded.role;
   return new;
 end;
-$$ language plpgsql security definer;
+$$ language plpgsql security definer set search_path = public;
 
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
-  for each row execute function handle_new_user();
+  for each row execute procedure public.handle_new_user();
 
 -- ──────────────────────────────────────────────────────────
 -- 2. VEHICLES (kendaraan milik customer)
