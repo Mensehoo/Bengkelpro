@@ -127,20 +127,25 @@ create table if not exists invoices (
 -- ROW LEVEL SECURITY
 -- ══════════════════════════════════════════════════════════
 
--- Helper function: cek role user saat ini
+-- Helper function: cek role user saat ini (SECURITY DEFINER biar tembus RLS)
 create or replace function current_user_role()
 returns text as $$
-  select role from profiles where id = auth.uid();
-$$ language sql security definer stable;
+begin
+  return (select role from public.profiles where id = auth.uid());
+end;
+$$ language plpgsql security definer set search_path = public;
 
 -- ── profiles ──────────────────────────────────────────────
 alter table profiles enable row level security;
 
+-- Hapus policy lama
 drop policy if exists "profiles_select_own"    on profiles;
-drop policy if exists "profiles_update_own"    on profiles;
 drop policy if exists "profiles_insert_own"    on profiles;
+drop policy if exists "profiles_update_own"    on profiles;
 drop policy if exists "profiles_select_staff"  on profiles;
 
+-- Policy baru (Non-rekursif)
+-- 1. User bisa liat & edit data sendiri (Cek UID dulu, ga manggil function)
 create policy "profiles_select_own"
   on profiles for select using (auth.uid() = id);
 
@@ -150,9 +155,13 @@ create policy "profiles_insert_own"
 create policy "profiles_update_own"
   on profiles for update using (auth.uid() = id);
 
+-- 2. Staff bisa liat semua data (Cek metadata JWT biar ga infinite loop)
 create policy "profiles_select_staff"
   on profiles for select
-  using (current_user_role() in ('admin', 'owner', 'kasir', 'mekanik'));
+  using (
+    (auth.jwt() -> 'user_metadata' ->> 'role') in ('admin', 'owner', 'kasir', 'mekanik')
+  );
+
 
 -- ── vehicles ──────────────────────────────────────────────
 alter table vehicles enable row level security;
