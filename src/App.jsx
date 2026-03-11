@@ -1,4 +1,4 @@
-import { useState, Component } from "react";
+import { useState, useEffect, Component } from "react";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { theme } from "./constants/theme";
 import Icon from "./components/Icon";
