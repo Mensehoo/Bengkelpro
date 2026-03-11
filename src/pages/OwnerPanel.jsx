@@ -5,7 +5,7 @@ import { Sidebar, TopBar, MobileHeader, MobilePageTitle, MobileBottomNav } from 
 import { Card, StatCard } from "../components/ui";
 import useIsMobile from "../hooks/useIsMobile";
 
-const OwnerPanel = ({ onLogout }) => {
+const OwnerPanel = ({ onLogout, userName }) => {
   const [page, setPage] = useState("revenue");
   const isMobile = useIsMobile();
 
@@ -159,9 +159,9 @@ const OwnerPanel = ({ onLogout }) => {
 
   return (
     <div style={{ display: "flex", fontFamily: "'Sora', sans-serif" }}>
-      <Sidebar items={navItemsFull} active={page} onSelect={setPage} role="owner" onLogout={onLogout} />
+      <Sidebar items={navItemsFull} active={page} onSelect={setPage} role="owner" userName={userName} onLogout={onLogout} />
       <div style={{ marginLeft: 240, flex: 1, padding: "28px 32px", background: theme.bg, minHeight: "100vh" }}>
-        <TopBar title={pageTitle} subtitle="Business Intelligence Dashboard" />
+        <TopBar title={pageTitle} subtitle="Business Intelligence Dashboard" userName={userName} />
         {renderPage()}
       </div>
     </div>

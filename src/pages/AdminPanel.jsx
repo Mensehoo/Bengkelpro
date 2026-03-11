@@ -5,7 +5,7 @@ import { Sidebar, TopBar, MobileHeader, MobilePageTitle, MobileBottomNav } from 
 import { Card, Btn } from "../components/ui";
 import useIsMobile from "../hooks/useIsMobile";
 
-const AdminPanel = ({ onLogout }) => {
+const AdminPanel = ({ onLogout, userName }) => {
   const [page, setPage] = useState("inventory");
   const isMobile = useIsMobile();
 
@@ -230,9 +230,9 @@ const AdminPanel = ({ onLogout }) => {
         { id: "inventory", icon: "package", label: "Inventori" },
         { id: "services",  icon: "wrench",  label: "Manajemen Jasa" },
         { id: "users",     icon: "users",   label: "Manajemen User" },
-      ]} active={page} onSelect={setPage} role="admin" onLogout={onLogout} />
+      ]} active={page} onSelect={setPage} role="admin" userName={userName} onLogout={onLogout} />
       <div style={{ marginLeft: 240, flex: 1, padding: "28px 32px", background: theme.bg, minHeight: "100vh" }}>
-        <TopBar title={pageTitle} subtitle="Panel Administrator" />
+        <TopBar title={pageTitle} subtitle="Panel Administrator" userName={userName} />
         {renderPage()}
       </div>
     </div>

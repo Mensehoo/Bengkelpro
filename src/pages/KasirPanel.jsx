@@ -4,7 +4,7 @@ import { Sidebar, TopBar, MobileHeader, MobilePageTitle, MobileBottomNav } from 
 import { Badge, Card, StatCard, Btn, Input } from "../components/ui";
 import useIsMobile from "../hooks/useIsMobile";
 
-const KasirPanel = ({ onLogout }) => {
+const KasirPanel = ({ onLogout, userName }) => {
   const [page, setPage] = useState("antrian");
   const isMobile = useIsMobile();
 
@@ -138,13 +138,13 @@ const KasirPanel = ({ onLogout }) => {
         { id: "antrian", icon: "list",   label: "Antrian Hari Ini", badge: 5 },
         { id: "payment", icon: "dollar", label: "Pembayaran" },
         { id: "invoice", icon: "print",  label: "Cetak Invoice" },
-      ]} active={page} onSelect={setPage} role="kasir" onLogout={onLogout} />
+      ]} active={page} onSelect={setPage} role="kasir" userName={userName} onLogout={onLogout} />
       <div style={{ marginLeft: 240, flex: 1, padding: "28px 32px", background: theme.bg, minHeight: "100vh" }}>
         <TopBar title={[
           { id: "antrian", label: "Antrian Hari Ini" },
           { id: "payment", label: "Pembayaran" },
           { id: "invoice", label: "Cetak Invoice" },
-        ].find(n => n.id === page)?.label} subtitle="Selasa, 10 Juni 2025" />
+        ].find(n => n.id === page)?.label} subtitle="Manajemen Transaksi" userName={userName} />
         {renderPage()}
       </div>
     </div>

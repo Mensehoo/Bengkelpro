@@ -5,7 +5,7 @@ import { Sidebar, TopBar, MobileHeader, MobilePageTitle, MobileBottomNav } from 
 import { Badge, Card, Btn } from "../components/ui";
 import useIsMobile from "../hooks/useIsMobile";
 
-const MekanikPanel = ({ onLogout }) => {
+const MekanikPanel = ({ onLogout, userName }) => {
   const [page, setPage] = useState("tugas");
   const isMobile = useIsMobile();
 
@@ -119,9 +119,9 @@ const MekanikPanel = ({ onLogout }) => {
 
   return (
     <div style={{ display: "flex", fontFamily: "'Sora', sans-serif" }}>
-      <Sidebar items={navItemsFull} active={page} onSelect={setPage} role="mekanik" onLogout={onLogout} />
+      <Sidebar items={navItemsFull} active={page} onSelect={setPage} role="mekanik" userName={userName} onLogout={onLogout} />
       <div style={{ marginLeft: 240, flex: 1, padding: "28px 32px", background: theme.bg, minHeight: "100vh" }}>
-        <TopBar title={navItemsFull.find(n => n.id === page)?.label} subtitle="Halo, Mekanik Andi 👋" />
+        <TopBar title={navItemsFull.find(n => n.id === page)?.label} subtitle={`Halo, ${userName || 'Mekanik'} 👋`} userName={userName} />
         {renderPage()}
       </div>
     </div>

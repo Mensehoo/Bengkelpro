@@ -2,8 +2,9 @@ import { useState } from "react";
 import { theme } from "../constants/theme";
 import Icon from "../components/Icon";
 import { Badge, Card, StatCard, EmptyState, Btn } from "../components/ui";
+import { MobileHeader, MobileBottomNav } from "../components/layout";
 
-const CustomerPanel = ({ onLogout }) => {
+const CustomerPanel = ({ onLogout, userName }) => {
   const [page, setPage] = useState("dashboard");
   const navItems = [
     { id: "dashboard", icon: "home",     label: "Beranda" },
@@ -157,29 +158,15 @@ const CustomerPanel = ({ onLogout }) => {
 
   return (
     <div style={{ fontFamily: "'Sora', sans-serif", background: theme.bg, minHeight: "100vh", paddingBottom: 80 }}>
-      <div style={{ background: "#fff", borderBottom: `1px solid ${theme.border}`, padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ fontWeight: 800, fontSize: 17, color: theme.text }}>BengkelPro</div>
-        <div style={{ display: "flex", gap: 10 }}>
-          <Icon name="bell" size={22} color={theme.textMuted} />
-          <div style={{ width: 32, height: 32, background: theme.primary, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 13 }}>B</div>
-        </div>
-      </div>
+      <MobileHeader title="BengkelPro" onLogout={onLogout} />
       <div style={{ padding: "20px 16px" }}>
         <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 4 }}>
           {navItems.find(n => n.id === page)?.label}
         </div>
-        <div style={{ color: theme.textMuted, fontSize: 13, marginBottom: 20 }}>Selasa, 10 Juni 2025</div>
+        <div style={{ color: theme.textMuted, fontSize: 13, marginBottom: 20 }}>Halo, {userName || "Pelanggan"}</div>
         {renderPage()}
       </div>
-      {/* BOTTOM NAV */}
-      <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "#fff", borderTop: `1px solid ${theme.border}`, display: "flex", padding: "8px 0 12px" }}>
-        {navItems.map((item) => (
-          <button key={item.id} onClick={() => setPage(item.id)} style={{ flex: 1, border: "none", background: "transparent", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, padding: "4px 0" }}>
-            <Icon name={item.icon} size={22} color={page === item.id ? theme.primary : theme.textMuted} />
-            <span style={{ fontSize: 10, color: page === item.id ? theme.primary : theme.textMuted, fontWeight: page === item.id ? 700 : 500, fontFamily: "'Sora', sans-serif" }}>{item.label}</span>
-          </button>
-        ))}
-      </div>
+      <MobileBottomNav items={navItems} active={page} onSelect={setPage} />
     </div>
   );
 };
