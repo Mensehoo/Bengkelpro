@@ -43,16 +43,28 @@ const ROLE_PANELS = {
 };
 
 // ─── Loading Spinner ──────────────────────────────────────────────────────────
-const LoadingScreen = () => (
-  <div style={{ minHeight: "100vh", background: theme.bg, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontFamily: "'Sora', sans-serif", gap: 16 }}>
-    <div style={{ width: 52, height: 52, background: theme.primary, borderRadius: 16, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <Icon name="wrench" size={24} color="#fff" />
+const LoadingScreen = ({ onEscape }) => {
+  const [showEscape, setShowEscape] = useState(false);
+  useEffect(() => { const t = setTimeout(() => setShowEscape(true), 5000); return () => clearTimeout(t); }, []);
+  return (
+    <div style={{ minHeight: "100vh", background: theme.bg, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontFamily: "'Sora', sans-serif", gap: 16 }}>
+      <div style={{ width: 52, height: 52, background: theme.primary, borderRadius: 16, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <Icon name="wrench" size={24} color="#fff" />
+      </div>
+      <div style={{ fontWeight: 800, fontSize: 18, color: theme.text }}>BengkelPro</div>
+      <div style={{ width: 36, height: 36, border: `3px solid ${theme.border}`, borderTopColor: theme.primary, borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      {showEscape && (
+        <button
+          onClick={onEscape}
+          style={{ marginTop: 8, padding: "8px 20px", background: "transparent", border: `1px solid ${theme.border}`, borderRadius: 10, cursor: "pointer", color: theme.textMuted, fontSize: 13, fontFamily: "'Sora', sans-serif" }}
+        >
+          Keluar / Reset
+        </button>
+      )}
     </div>
-    <div style={{ fontWeight: 800, fontSize: 18, color: theme.text }}>BengkelPro</div>
-    <div style={{ width: 36, height: 36, border: `3px solid ${theme.border}`, borderTopColor: theme.primary, borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
-    <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-  </div>
-);
+  );
+};
 
 // ─── Inner App (butuh useAuth, harus di dalam AuthProvider) ──────────────────
 const AppInner = () => {
@@ -60,7 +72,7 @@ const AppInner = () => {
   const [screen, setScreen] = useState("landing"); // "landing" | "login" | "register"
 
   // Tampilkan spinner saat cek session awal
-  if (loading) return <LoadingScreen />;
+  if (loading) return <LoadingScreen onEscape={signOut} />;
 
   // ── Sudah login ──────────────────────────────────────────────────────────
   if (user && profile) {

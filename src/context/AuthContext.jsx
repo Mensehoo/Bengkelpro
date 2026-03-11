@@ -8,43 +8,52 @@ export const AuthProvider = ({ children }) => {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Ambil profile (role) dari tabel profiles, buat baru jika belum ada
+  // Ambil profile — buat baru kalau belum ada, timeout 6 detik
   const fetchProfile = async (userId, userMeta = {}) => {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", userId)
-      .single();
+    try {
+      const { data, error } = await Promise.race([
+        supabase.from("profiles").select("*").eq("id", userId).single(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 6000)),
+      ]);
 
-    if (!error && data) {
-      setProfile(data);
-      return;
+      if (!error && data) { setProfile(data); return; }
+    } catch (_) { /* timeout atau error lain, lanjut coba upsert */ }
+
+    // Profile belum ada — buat manual (fallback trigger)
+    try {
+      const { data: created } = await Promise.race([
+        supabase
+          .from("profiles")
+          .upsert({
+            id:        userId,
+            full_name: userMeta?.full_name || "",
+            role:      userMeta?.role      || "customer",
+            phone:     userMeta?.phone     || null,
+          })
+          .select()
+          .single(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 6000)),
+      ]);
+      if (created) setProfile(created);
+    } catch (_) {
+      // Gagal total — biarkan profile null, user tetap bisa logout
+      console.warn("[BengkelPro] fetchProfile gagal, profile null");
     }
-
-    // Profile belum ada (trigger gagal) — buat manual
-    const { data: created } = await supabase
-      .from("profiles")
-      .upsert({
-        id: userId,
-        full_name: userMeta?.full_name || "",
-        role: userMeta?.role || "customer",
-        phone: userMeta?.phone || null,
-      })
-      .select()
-      .single();
-
-    if (created) setProfile(created);
   };
 
   useEffect(() => {
-    // Cek session aktif saat pertama load
+    // Safety timeout — loading TIDAK akan stuck lebih dari 8 detik
+    const safetyTimer = setTimeout(() => setLoading(false), 8000);
+
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       setUser(session?.user ?? null);
-      if (session?.user) await fetchProfile(session.user.id, session.user.user_metadata);
+      if (session?.user) {
+        await fetchProfile(session.user.id, session.user.user_metadata);
+      }
+      clearTimeout(safetyTimer);
       setLoading(false);
     });
 
-    // Listen perubahan auth state (login/logout)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         setUser(session?.user ?? null);
@@ -57,33 +66,28 @@ export const AuthProvider = ({ children }) => {
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => { subscription.unsubscribe(); clearTimeout(safetyTimer); };
   }, []);
 
-  // Login dengan email + password
+  // Login
   const signIn = async (email, password) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
     return data;
   };
 
-  // Register pelanggan baru
+  // Register customer baru
   const signUp = async ({ email, password, fullName, phone }) => {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: {
-        data: { full_name: fullName, role: "customer" },
-      },
+      options: { data: { full_name: fullName, role: "customer" } },
     });
     if (error) throw error;
-    // Jika email confirmation dimatikan, langsung insert profile
+    // Upsert profile manual sebagai backup trigger
     if (data?.user) {
       await supabase.from("profiles").upsert({
-        id: data.user.id,
-        full_name: fullName,
-        phone,
-        role: "customer",
+        id: data.user.id, full_name: fullName, phone, role: "customer",
       });
     }
     return data;
