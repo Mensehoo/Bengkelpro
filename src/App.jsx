@@ -77,7 +77,7 @@ const AppInner = () => {
   // ── Sudah login ──────────────────────────────────────────────────────────
   if (user && profile) {
     const Panel = ROLE_PANELS[profile.role];
-    if (Panel) return <Panel onLogout={signOut} userName={profile.full_name} />;
+    if (Panel) return <Panel onLogout={signOut} userName={profile.full_name} userId={profile.id} />;
     // Role tidak dikenal — tampilkan pesan error
     return (
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Sora', sans-serif", flexDirection: "column", gap: 12 }}>
