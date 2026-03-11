@@ -13,15 +13,26 @@ export const AuthProvider = ({ children }) => {
     try {
       const { data, error } = await Promise.race([
         supabase.from("profiles").select("*").eq("id", userId).single(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 6000)),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("Koneksi Database Timeout (6s).")), 6000)),
       ]);
 
-      if (!error && data) { setProfile(data); return; }
-    } catch (_) { /* timeout atau error lain, lanjut coba upsert */ }
+      if (!error && data) { 
+        // Selalu gunakan role dari database (profiles) jika ada!
+        setProfile(data); 
+        return; 
+      }
+      if (error && error.code !== "PGRST116") throw error; // PGRST116 = not found
+    } catch (err) {
+      if (err.message === "Koneksi Database Timeout (6s).") throw err;
+      // Jika error 500/Internal, lempar ke atas biar muncul di UI
+      if (err.status === 500 || err.message?.includes("500")) {
+        throw new Error("Database Error (500): Kemungkinan Infinite Recursion di RLS. Jalankan SQL Fix!");
+      }
+    }
 
     // Profile belum ada — buat manual (fallback trigger)
     try {
-      const { data: created } = await Promise.race([
+      const { data: created, error: upsertError } = await Promise.race([
         supabase
           .from("profiles")
           .upsert({
@@ -32,23 +43,26 @@ export const AuthProvider = ({ children }) => {
           })
           .select()
           .single(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 6000)),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("Koneksi Database Timeout (6s).")), 6000)),
       ]);
+      
+      if (upsertError) throw upsertError;
       if (created) setProfile(created);
-    } catch (_) {
-      // Gagal total — biarkan profile null, user tetap bisa logout
-      console.warn("[BengkelPro] fetchProfile gagal, profile null");
+    } catch (err) {
+      console.error("[BengkelPro] fetchProfile critical error:", err);
+      throw new Error(err.message || "Gagal membuat profile di database.");
     }
   };
 
   useEffect(() => {
-    // Safety timeout — loading TIDAK akan stuck lebih dari 8 detik
     const safetyTimer = setTimeout(() => setLoading(false), 8000);
 
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       setUser(session?.user ?? null);
       if (session?.user) {
-        await fetchProfile(session.user.id, session.user.user_metadata);
+        try {
+          await fetchProfile(session.user.id, session.user.user_metadata);
+        } catch (e) { console.error(e); }
       }
       clearTimeout(safetyTimer);
       setLoading(false);
@@ -58,7 +72,9 @@ export const AuthProvider = ({ children }) => {
       async (_event, session) => {
         setUser(session?.user ?? null);
         if (session?.user) {
-          await fetchProfile(session.user.id, session.user.user_metadata);
+          try {
+            await fetchProfile(session.user.id, session.user.user_metadata);
+          } catch (e) { console.error(e); }
         } else {
           setProfile(null);
         }
@@ -71,22 +87,24 @@ export const AuthProvider = ({ children }) => {
 
   // Login
   const signIn = async (email, password) => {
-    // Validasi apakah env vars sudah benar (bukan placeholder)
     if (supabase.supabaseUrl.includes("placeholder.supabase.co")) {
       throw new Error("Konfigurasi Supabase belum benar di Vercel. Silakan isi Environment Variables dan REDEPLOY.");
     }
 
-    try {
-      const { data, error } = await Promise.race([
-        supabase.auth.signInWithPassword({ email, password }),
-        new Promise((_, reject) => setTimeout(() => reject(new Error("Koneksi ke Supabase timeout. Coba lagi.")), 10000)),
-      ]);
-      
-      if (error) throw error;
-      return data;
-    } catch (err) {
-      throw err;
+    const { data, error } = await Promise.race([
+      supabase.auth.signInWithPassword({ email, password }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("Koneksi ke Supabase timeout. Coba lagi.")), 10000)),
+    ]);
+    
+    if (error) throw error;
+
+    // CRITICAL: Tunggu profile berhasil diambil/dibuat sebelum sukses login
+    // Agar jika ada error 500 di database, user dapet alert di AuthPage
+    if (data?.user) {
+      await fetchProfile(data.user.id, data.user.user_metadata);
     }
+    
+    return data;
   };
 
   // Register customer baru
