@@ -223,7 +223,7 @@ const AdminPanel = ({ onLogout, userName }) => {
 
         return (
           <div>
-            <div style={{ display: "flex", justify-content: "flex-end", marginBottom: 16 }}>
+            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
               <Btn icon="plus" onClick={() => setShowAddSvc(true)}>Tambah Jasa</Btn>
             </div>
             {isMobile ? (
