@@ -33,14 +33,14 @@ export const StatCard = ({ label, value, sub, icon, color, trend }) => (
 );
 
 // ─── EMPTY STATE ──────────────────────────────────────────────────────────────
-export const EmptyState = ({ icon, title, desc, action }) => (
+export const EmptyState = ({ icon, title, desc, action, onAction }) => (
   <div style={{ textAlign: "center", padding: "48px 24px" }}>
     <div style={{ width: 72, height: 72, background: theme.bg, borderRadius: 20, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
       <Icon name={icon} size={30} color={theme.textMuted} />
     </div>
     <div style={{ fontWeight: 700, fontSize: 16, color: theme.text, marginBottom: 6, fontFamily: "'Sora', sans-serif" }}>{title}</div>
     <div style={{ fontSize: 13, color: theme.textMuted, marginBottom: 20 }}>{desc}</div>
-    {action && <button style={{ background: theme.primary, color: "#fff", border: "none", borderRadius: 10, padding: "10px 22px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'Sora', sans-serif" }}>{action}</button>}
+    {action && <button onClick={onAction} style={{ background: theme.primary, color: "#fff", border: "none", borderRadius: 10, padding: "10px 22px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'Sora', sans-serif" }}>{action}</button>}
   </div>
 );
 
