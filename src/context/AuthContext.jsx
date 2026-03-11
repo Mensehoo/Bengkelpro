@@ -71,13 +71,30 @@ export const AuthProvider = ({ children }) => {
 
   // Login
   const signIn = async (email, password) => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
-    return data;
+    // Validasi apakah env vars sudah benar (bukan placeholder)
+    if (supabase.supabaseUrl.includes("placeholder.supabase.co")) {
+      throw new Error("Konfigurasi Supabase belum benar di Vercel. Silakan isi Environment Variables dan REDEPLOY.");
+    }
+
+    try {
+      const { data, error } = await Promise.race([
+        supabase.auth.signInWithPassword({ email, password }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("Koneksi ke Supabase timeout. Coba lagi.")), 10000)),
+      ]);
+      
+      if (error) throw error;
+      return data;
+    } catch (err) {
+      throw err;
+    }
   };
 
   // Register customer baru
   const signUp = async ({ email, password, fullName, phone }) => {
+    if (supabase.supabaseUrl.includes("placeholder.supabase.co")) {
+      throw new Error("Konfigurasi Supabase belum benar di Vercel. Silakan isi Environment Variables dan REDEPLOY.");
+    }
+
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
