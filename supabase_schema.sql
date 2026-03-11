@@ -127,10 +127,16 @@ create table if not exists invoices (
 -- ROW LEVEL SECURITY
 -- ══════════════════════════════════════════════════════════
 
--- Helper function: cek role user saat ini (SECURITY DEFINER biar tembus RLS)
+-- Helper function: cek role user saat ini (NON-REKURSIF)
 create or replace function current_user_role()
 returns text as $$
 begin
+  -- Langsung ambil dari JWT metadata bila tersedia (paling cepat & aman)
+  if (auth.jwt() -> 'user_metadata' ->> 'role') is not null then
+    return (auth.jwt() -> 'user_metadata' ->> 'role');
+  end if;
+
+  -- Fallback ke tabel profiles (SECURITY DEFINER bypasses RLS)
   return (select role from public.profiles where id = auth.uid());
 end;
 $$ language plpgsql security definer set search_path = public;
@@ -138,25 +144,24 @@ $$ language plpgsql security definer set search_path = public;
 -- ── profiles ──────────────────────────────────────────────
 alter table profiles enable row level security;
 
--- Hapus policy lama
-drop policy if exists "profiles_select_own"    on profiles;
-drop policy if exists "profiles_insert_own"    on profiles;
-drop policy if exists "profiles_update_own"    on profiles;
-drop policy if exists "profiles_select_staff"  on profiles;
+-- Hapus SEMUA policy yang mungkin ada (biar bersih)
+do $$ 
+declare 
+  pol record;
+begin 
+  for pol in select policyname from pg_policies where tablename = 'profiles' 
+  loop
+    execute format('drop policy %I on profiles', pol.policyname);
+  end loop;
+end $$;
 
--- Policy baru (Non-rekursif)
--- 1. User bisa liat & edit data sendiri (Cek UID dulu, ga manggil function)
-create policy "profiles_select_own"
-  on profiles for select using (auth.uid() = id);
+-- Rebuild Policy (Aman dari Recursion)
+create policy "allow_select_own" on profiles for select using (auth.uid() = id);
+create policy "allow_insert_own" on profiles for insert with check (auth.uid() = id);
+create policy "allow_update_own" on profiles for update using (auth.uid() = id);
 
-create policy "profiles_insert_own"
-  on profiles for insert with check (auth.uid() = id);
-
-create policy "profiles_update_own"
-  on profiles for update using (auth.uid() = id);
-
--- 2. Staff bisa liat semua data (Cek metadata JWT biar ga infinite loop)
-create policy "profiles_select_staff"
+-- Staff can see all, tapi pake metadata JWT biar ga balik manggil function (loop)
+create policy "allow_staff_select_all"
   on profiles for select
   using (
     (auth.jwt() -> 'user_metadata' ->> 'role') in ('admin', 'owner', 'kasir', 'mekanik')
