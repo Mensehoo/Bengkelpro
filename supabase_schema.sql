@@ -1,5 +1,5 @@
 -- ============================================================
--- BENGKELPRO — Supabase Schema Lengkap
+-- BENGKELPRO — Master Supabase Schema Lengkap v2.0
 -- Jalankan di: Supabase Dashboard → SQL Editor → Run ▶
 -- ============================================================
 
@@ -15,7 +15,7 @@ create table if not exists profiles (
   created_at timestamptz default now()
 );
 
--- 2. BERIKAN HAK AKSES SISTEM SUPABASE KE SKEMA PUBLIK
+-- BERIKAN HAK AKSES SISTEM SUPABASE KE SKEMA PUBLIK
 grant usage on schema public to postgres, anon, authenticated, service_role;
 grant all privileges on all tables in schema public to postgres, anon, authenticated, service_role;
 grant all privileges on all routines in schema public to postgres, anon, authenticated, service_role;
@@ -58,7 +58,7 @@ create table if not exists vehicles (
 );
 
 -- ──────────────────────────────────────────────────────────
--- 3. SERVICES CATALOG (daftar jasa — dikelola Admin)
+-- 3. SERVICES CATALOG (daftar jasa — dikelola Admin/Owner)
 -- ──────────────────────────────────────────────────────────
 create table if not exists services_catalog (
   id          uuid primary key default gen_random_uuid(),
@@ -71,7 +71,7 @@ create table if not exists services_catalog (
 );
 
 -- ──────────────────────────────────────────────────────────
--- 4. INVENTORY (sparepart — dikelola Admin)
+-- 4. INVENTORY (sparepart — dikelola Admin/Owner)
 -- ──────────────────────────────────────────────────────────
 create table if not exists inventory (
   id          uuid primary key default gen_random_uuid(),
@@ -85,7 +85,7 @@ create table if not exists inventory (
 );
 
 -- ──────────────────────────────────────────────────────────
--- 5. SERVICE ORDERS (antrian servis)
+-- 5. SERVICE ORDERS (antrian servis utama)
 -- ──────────────────────────────────────────────────────────
 create table if not exists service_orders (
   id           uuid primary key default gen_random_uuid(),
@@ -93,9 +93,22 @@ create table if not exists service_orders (
   customer_id  uuid references profiles(id) on delete set null,
   vehicle_id   uuid references vehicles(id) on delete set null,
   mechanic_id  uuid references profiles(id) on delete set null,
-  complaint    text,                  -- keluhan pelanggan
+  service_id   uuid references services_catalog(id) on delete set null, -- Layanan Pilihan Customer
+  
+  complaint    text,                  -- keluhan awal pelanggan
   status       text not null default 'waiting',
-  -- status: waiting | processing | done | paid | cancelled
+  -- status: waiting | assigned | processing | done | waiting_payment_validation | paid | cancelled
+  
+  -- Tracking Mekanik
+  mechanic_status  text,
+  inspection_notes text,
+  
+  -- Feedback Pelanggan
+  rating       int,
+  review       text,
+  admin_response text,
+  payment_proof_url text,
+  
   check_in_at  timestamptz default now(),
   done_at      timestamptz,
   created_at   timestamptz default now()
@@ -115,7 +128,7 @@ create table if not exists order_items (
 );
 
 -- ──────────────────────────────────────────────────────────
--- 7. INVOICES (pembayaran)
+-- 7. INVOICES (pembayaran & keuangan)
 -- ──────────────────────────────────────────────────────────
 create table if not exists invoices (
   id              uuid primary key default gen_random_uuid(),
@@ -131,142 +144,88 @@ create table if not exists invoices (
   created_at      timestamptz default now()
 );
 
+-- ──────────────────────────────────────────────────────────
+-- 8. STORAGE BUCKET (Untuk Bukti Pembayaran Customer)
+-- ──────────────────────────────────────────────────────────
+INSERT INTO storage.buckets (id, name, public) 
+VALUES ('payments', 'payments', true) 
+ON CONFLICT (id) DO NOTHING;
+
 -- ══════════════════════════════════════════════════════════
--- ROW LEVEL SECURITY
+-- ROW LEVEL SECURITY (RLS)
 -- ══════════════════════════════════════════════════════════
 
 -- Helper function: cek role user saat ini (NON-REKURSIF)
 create or replace function current_user_role()
 returns text as $$
 begin
-  -- Langsung ambil dari JWT metadata bila tersedia (paling cepat & aman)
   if (auth.jwt() -> 'user_metadata' ->> 'role') is not null then
     return (auth.jwt() -> 'user_metadata' ->> 'role');
   end if;
-
-  -- Fallback ke tabel profiles (SECURITY DEFINER bypasses RLS)
   return (select role from public.profiles where id = auth.uid());
 end;
 $$ language plpgsql security definer set search_path = public;
 
--- ── profiles ──────────────────────────────────────────────
+-- ── profiles ──
 alter table profiles enable row level security;
-
--- Hapus SEMUA policy yang mungkin ada (biar bersih)
 do $$ 
-declare 
-  pol record;
+declare pol record;
 begin 
   for pol in select policyname from pg_policies where tablename = 'profiles' 
-  loop
-    execute format('drop policy %I on profiles', pol.policyname);
-  end loop;
+  loop execute format('drop policy %I on profiles', pol.policyname); end loop;
 end $$;
 
--- Rebuild Policy (Aman dari Recursion)
 create policy "allow_select_own" on profiles for select using (auth.uid() = id);
 create policy "allow_insert_own" on profiles for insert with check (auth.uid() = id);
 create policy "allow_update_own" on profiles for update using (auth.uid() = id);
+create policy "allow_staff_select_all" on profiles for select using ((auth.jwt() -> 'user_metadata' ->> 'role') in ('admin', 'owner', 'kasir', 'mekanik'));
 
--- Staff can see all, tapi pake metadata JWT biar ga balik manggil function (loop)
-create policy "allow_staff_select_all"
-  on profiles for select
-  using (
-    (auth.jwt() -> 'user_metadata' ->> 'role') in ('admin', 'owner', 'kasir', 'mekanik')
-  );
-
-
--- ── vehicles ──────────────────────────────────────────────
+-- ── vehicles ──
 alter table vehicles enable row level security;
-
 drop policy if exists "vehicles_customer" on vehicles;
 drop policy if exists "vehicles_staff"    on vehicles;
+create policy "vehicles_customer" on vehicles for all using (owner_id = auth.uid());
+create policy "vehicles_staff" on vehicles for select using (current_user_role() in ('admin', 'owner', 'kasir', 'mekanik'));
 
-create policy "vehicles_customer"
-  on vehicles for all
-  using (owner_id = auth.uid());
-
-create policy "vehicles_staff"
-  on vehicles for select
-  using (current_user_role() in ('admin', 'owner', 'kasir', 'mekanik'));
-
--- ── services_catalog ──────────────────────────────────────
+-- ── services_catalog ──
 alter table services_catalog enable row level security;
-
 drop policy if exists "services_read_all" on services_catalog;
 drop policy if exists "services_admin"    on services_catalog;
+create policy "services_read_all" on services_catalog for select using (true);
+create policy "services_admin" on services_catalog for all using (current_user_role() in ('admin', 'owner'));
 
-create policy "services_read_all"
-  on services_catalog for select using (true);
-
-create policy "services_admin"
-  on services_catalog for all
-  using (current_user_role() in ('admin', 'owner'));
-
--- ── inventory ─────────────────────────────────────────────
+-- ── inventory ──
 alter table inventory enable row level security;
-
 drop policy if exists "inventory_read_staff"  on inventory;
 drop policy if exists "inventory_manage_admin" on inventory;
+create policy "inventory_read_staff" on inventory for select using (current_user_role() in ('admin', 'owner', 'mekanik', 'kasir'));
+create policy "inventory_manage_admin" on inventory for all using (current_user_role() in ('admin', 'owner'));
 
-create policy "inventory_read_staff"
-  on inventory for select
-  using (current_user_role() in ('admin', 'owner', 'mekanik', 'kasir'));
-
-create policy "inventory_manage_admin"
-  on inventory for all
-  using (current_user_role() in ('admin', 'owner'));
-
--- ── service_orders ────────────────────────────────────────
+-- ── service_orders ──
 alter table service_orders enable row level security;
-
 drop policy if exists "orders_customer"  on service_orders;
+drop policy if exists "orders_customer_update" on service_orders;
 drop policy if exists "orders_staff"     on service_orders;
 
-create policy "orders_customer"
-  on service_orders for select
-  using (customer_id = auth.uid());
+create policy "orders_customer" on service_orders for select using (customer_id = auth.uid());
+create policy "orders_customer_update" on service_orders for update using (customer_id = auth.uid());
+create policy "orders_staff" on service_orders for all using (current_user_role() in ('admin', 'owner', 'kasir', 'mekanik'));
 
-create policy "orders_staff"
-  on service_orders for all
-  using (current_user_role() in ('admin', 'owner', 'kasir', 'mekanik'));
-
--- ── order_items ───────────────────────────────────────────
+-- ── order_items ──
 alter table order_items enable row level security;
-
 drop policy if exists "items_staff" on order_items;
+create policy "items_staff" on order_items for all using (current_user_role() in ('admin', 'owner', 'kasir', 'mekanik'));
 
-create policy "items_staff"
-  on order_items for all
-  using (current_user_role() in ('admin', 'owner', 'kasir', 'mekanik'));
-
--- ── invoices ──────────────────────────────────────────────
+-- ── invoices ──
 alter table invoices enable row level security;
-
 drop policy if exists "invoices_customer" on invoices;
 drop policy if exists "invoices_staff"    on invoices;
+create policy "invoices_customer" on invoices for select using (exists (select 1 from service_orders where service_orders.id = invoices.order_id and service_orders.customer_id = auth.uid()));
+create policy "invoices_staff" on invoices for all using (current_user_role() in ('admin', 'owner', 'kasir'));
 
-create policy "invoices_customer"
-  on invoices for select
-  using (
-    exists (
-      select 1 from service_orders
-      where service_orders.id = invoices.order_id
-        and service_orders.customer_id = auth.uid()
-    )
-  );
-
-create policy "invoices_staff"
-  on invoices for all
-  using (current_user_role() in ('admin', 'owner', 'kasir'));
-
--- ══════════════════════════════════════════════════════════
--- CATATAN CARA BUAT AKUN STAFF
--- ══════════════════════════════════════════════════════════
--- 1. Buat user di: Supabase → Authentication → Users → Add user
--- 2. Setelah user dibuat, jalankan query ini di SQL Editor:
---    UPDATE profiles SET role = 'kasir'   WHERE id = 'uuid-user';
---    UPDATE profiles SET role = 'mekanik' WHERE id = 'uuid-user';
---    UPDATE profiles SET role = 'admin'   WHERE id = 'uuid-user';
---    UPDATE profiles SET role = 'owner'   WHERE id = 'uuid-user';
--- ══════════════════════════════════════════════════════════
+-- ── storage (payments) ──
+alter table storage.objects enable row level security;
+drop policy if exists "allow_public_view_payments" ON storage.objects;
+CREATE POLICY "allow_public_view_payments" ON storage.objects FOR SELECT USING ( bucket_id = 'payments' );
+drop policy if exists "allow_customer_insert_payments" ON storage.objects;
+CREATE POLICY "allow_customer_insert_payments" ON storage.objects FOR INSERT WITH CHECK ( bucket_id = 'payments' AND auth.role() = 'authenticated' );
